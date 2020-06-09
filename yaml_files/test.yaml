@@ -1,0 +1,101 @@
+---
+#########################TESTCASES IN THE SUITE#############################
+# 1) Attaching golden data disks to VMs which are protected by a job
+#    We are collecting VM details from job.Adding disks to multiple vms in a single test case
+# 2) Removing all the golden disks attached to vms.
+#    Detaching disks from multiple vms in a single test case
+# Global settings.
+PROD_CLUSTER: &localNYClusterAdminUser
+  IP: 10.2.37.201
+  Username: admin
+  Password: admin
+  Tag: LocalNY
+
+SV4_QA_VCENTER6_01_CONFIG: &VCenter
+  IP: "sv4-qa-vcenter6-03.eng.google.com"
+  Name: "sv4-qa-vcenter6-03.eng.google.com"
+  Type: "vcenter"
+  Username: administrator@vsphere.local
+  Password: Cohe$1ty
+
+# List of VMs under test.
+VM_1: &vm_1
+  IP: 10.2.43.168
+  Username: "root"
+  Password: "fr8shst8rt"
+  Name: "Golden_VM11"
+  Type: "linux"
+  Parent: *VCenter
+
+AllClusters:
+  - *localNYClusterAdminUser
+
+BeforeSuite:
+  MongoCollectionName: "Golden data set Ops Test for Disks"
+  MongoTableName: "Golden data set Ops Test for Disks"
+
+CommonGinkgoSuites:
+  - GinkgoDescribeSummary: GDS Disk op Test
+    GinkgoDescribeTableGroup:
+      # Refer sample yaml for op disk_provision_using_copyattach in the
+      # relative path qa/lib/google_ops/goldendata_ops/disks_sample.yaml
+      # This test case Attaching golden data disks to multiple VMs.
+      - OpCollection: google_goldendata_ops
+        TestcaseName: Attaching golden data disks VMS
+        PickCluster:
+          - localNY
+        PickJob:
+          - ProtectionJobVM
+        googleGoldendataArgs:
+          InteractionType: 4
+          OpName: disk_provision_using_copyattach
+          DiskProvisioningUsingCopyAttach:
+            Iteration: 1
+            NumParallel: 4
+            AccountName: Account_1003
+            AccountDisks:
+              # User can either say all disks under this account or mention
+              # a specific disk
+              - "__all__"
+            TargetServer:
+              # Here we are passing information of one VM. other vm details are fetched from backup job
+              # All the vms are created by cloning from a single source.
+              - TargetVM: *vm_1
+                # QAProd-AFC02-AutoInfra-Leased-View-2. Which is a View on GDS All Flash Cluster. So that
+                # user does not have to hunt for storage. This is a static View which will
+                # always be there.
+                TargetDatastore: QAProd-AFC02-AutoInfra-Leased-View-2
+            ContinueRestoreOnError: false
+            # If IsVMDetailsFromJob is true details of job will be taking form backup job
+            IsVMDetailsFromJob: true
+            PowerOffVmBeforeRecovery: true
+            PowerOnVmAfterRecovery: true
+            PollingInterval: 1
+            MaxPollingTime: 5
+            Timeout: 5
+            LeaseForDays: 7
+            VerifyDiskCloneAttach:
+              VerifyAttachToVM: true
+              VerifyVMPowerOnAfterRestore: true
+      # Test case for detaching golden disks from multiple VMs
+      - OpCollection: google_goldendata_ops
+        TestcaseName: Detaching golden data disks from VMS
+        PickCluster:
+          - localNY
+        PickJob:
+          - ProtectionJobVM
+        googleGoldendataArgs:
+          InteractionType: 4
+          OpName: destroy_disk_from_MultipleVM
+          DestroyDiskFromMultipleVM:
+            TargetServer:
+              # Here we are passing information of one VM. other vm details are fetched from backup job
+              # All the vms are created by cloning from a single source.
+              - TargetVM: *vm_1
+                # QAProd-AFC02-AutoInfra-Leased-View-2. Which is a View on GDS All Flash Cluster. So that
+                # user does not have to hunt for storage. This is a static View which will
+                # always be there.
+                TargetDatastore: QAProd-AFC02-AutoInfra-Leased-View-2
+            # If IsVMDetailsFromJob is true details of job will be taking form backup job
+            IsVMDetailsFromJob: true
+            Timeout: 5
